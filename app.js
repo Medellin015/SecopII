@@ -194,9 +194,34 @@
     el.href=url; el.download=fname; document.body.appendChild(el); el.click();
     document.body.removeChild(el); setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
   }
+  /* da formato al .xlsx: anchos de columna, encabezado con estilo, filtros y miles */
+  function styleSheet(ws){
+    var range=XLSX.utils.decode_range(ws['!ref']), cols=[];
+    for(var c=range.s.c;c<=range.e.c;c++){
+      var max=10;
+      for(var r=range.s.r;r<=range.e.r;r++){
+        var cell=ws[XLSX.utils.encode_cell({c:c,r:r})];
+        if(cell&&cell.v!=null){ var len=String(cell.v).length; if(len>max) max=len; }
+      }
+      cols.push({wch:Math.min(max+2,60)});
+      var head=ws[XLSX.utils.encode_cell({c:c,r:0})];
+      if(head){
+        head.s={ font:{bold:true,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"0A1A2F"}},
+          alignment:{horizontal:"center",vertical:"center",wrapText:true},
+          border:{bottom:{style:"medium",color:{rgb:"B98A28"}}} };
+        if(/^Valor/i.test(String(head.v))){
+          for(var rr=1;rr<=range.e.r;rr++){ var cc=ws[XLSX.utils.encode_cell({c:c,r:rr})];
+            if(cc&&typeof cc.v==="number") cc.z="#,##0"; }
+        }
+      }
+    }
+    ws['!cols']=cols;
+    ws['!autofilter']={ref:ws['!ref']};
+  }
   function exportRecords(records, base){
     if(window.XLSX){
       var ws=XLSX.utils.json_to_sheet(records);
+      styleSheet(ws);
       var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Contratos");
       XLSX.writeFile(wb, base+".xlsx");
     } else {
